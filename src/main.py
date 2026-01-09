@@ -9,46 +9,38 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
-# Get the backend directory (parent of src)
-backend_dir = Path(__file__).resolve().parent.parent
-env_path = backend_dir / '.env'
+# Add src to path for imports
+src_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(src_dir))
 
-# Load environment variables
-load_dotenv(dotenv_path=env_path)
-
-# Debug: Print to verify
 print("=" * 60)
 print("🚀 GenAI Multi-App Platform Starting...")
 print("=" * 60)
-print(f"🔍 Loading .env from: {env_path}")
-print(f"📁 .env exists: {env_path.exists()}")
 
-# Validate API key
+# Get API key from environment (works for both local .env and Azure)
 API_KEY = os.getenv("GENAI_API_KEY")
 if API_KEY:
     print(f"🔑 API Key loaded: Yes ✅")
     print(f"🔑 API Key (first 10 chars): {API_KEY[:10]}...")
 else:
-    print("❌ ERROR: GENAI_API_KEY not found!")
-    print(f"Make sure .env file exists at: {env_path}")
-    raise RuntimeError("GENAI_API_KEY not set in .env file")
+    print("⚠️ WARNING: GENAI_API_KEY not found!")
+    print("⚠️ App will start but API calls may fail")
 
 print("=" * 60)
 
-# Import routers AFTER loading env
+# Import routers
 from apps.search_engine.routes import router as search_router
 from apps.knowledge_chatbot.routes import router as chatbot_router
 
-# Lifespan event handler (replaces deprecated on_event)
+# Lifespan event handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("\n✅ Server started successfully!")
-    print("📚 API Documentation: http://localhost:8001/api/docs")
-    print("🔍 Search Engine: http://localhost:8001/api/search")
-    print("💬 Knowledge Chatbot: http://localhost:8001/api/chatbot")
+    print("📚 API Documentation: /api/docs")
+    print("🔍 Search Engine: /api/search")
+    print("💬 Knowledge Chatbot: /api/chatbot")
     print("=" * 60 + "\n")
     yield
     # Shutdown
@@ -96,7 +88,7 @@ async def health_check():
             "search_engine": "operational",
             "knowledge_chatbot": "operational"
         },
-        "gemini_api": "connected"
+        "gemini_api": "connected" if API_KEY else "not_configured"
     }
 
 # Register app routers with prefixes
@@ -114,10 +106,11 @@ app.include_router(
 
 if __name__ == "__main__":
     import uvicorn
+    port = int(os.environ.get("PORT", 8001))
     uvicorn.run(
-        "main:app",  # Import string format for reload
+        "src.main:app",
         host="0.0.0.0", 
-        port=8001, 
-        reload=True,
+        port=port,
+        reload=False,  # Don't use reload in production
         log_level="info"
     )
