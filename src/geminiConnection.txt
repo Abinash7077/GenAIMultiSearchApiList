@@ -1,0 +1,31 @@
+from google import genai
+from google.genai import types
+
+# 1. Initialize Client (Get your key from aistudio.google.com)
+client = genai.Client(api_key="YOUR_API_KEY")
+
+# 2. Prepare your inputs
+# For images/audio, you can pass bytes or use the 'files' API for larger files
+prompt = "Analyze this audio and image. Summarize the key findings in text only."
+
+# 3. Call the model
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents=[
+        prompt,
+        types.Part.from_uri(file_uri="gs://your-bucket/audio.mp3", mime_type="audio/mpeg"),
+        types.Part.from_uri(file_uri="gs://your-bucket/chart.png", mime_type="image/png"),
+    ],
+    config=types.GenerateContentConfig(
+        # NEW FEATURES FOR GEMINI 3
+        thinking_level="medium",       # Options: minimal, low, medium, high
+        temperature=1.0,               # Recommended 1.0 for Gemini 3
+        max_output_tokens=1000,
+        top_p=0.95,
+        top_k=64,
+        # System instruction to force text-only output
+        system_instruction="You are a research assistant. Always return text responses only."
+    )
+)
+
+print(response.text)
